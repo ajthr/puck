@@ -1,27 +1,12 @@
 version: "1"
-
 project:
-  name: ""
-  path: ""
-
+    name: ""
+    path: ""
 tools:
-  - name: "code_commenting"
-    enabled: false
-    description: "Adds inline code comments to pull requests"
-  - name: "docusaurus_sync"
-    enabled: false
-    description: "Syncs code documentation to a Docusaurus site"
-  - name: "changelog_gen"
-    enabled: false
-    description: "Auto-generates changelog from commit messages"
-
 branch_rules:
-  - branch: "main"
-    triggers:
-      - "push"
-    tools: []
-  - branch: "develop"
-    triggers:
-      - "push"
-      - "pull_request"
-    tools: []
+    - branch: main
+      triggers: []
+      tools: []
+    - branch: develop
+      triggers: []
+      tools: []

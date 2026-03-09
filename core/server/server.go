@@ -7,7 +7,9 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"sync"
 
@@ -42,6 +44,11 @@ type BranchRule struct {
 	Tools    []string `yaml:"tools" json:"tools"`
 }
 
+// ToolsFile represents the structure of config/tools.yaml
+type ToolsFile struct {
+	Tools []Tool `yaml:"tools"`
+}
+
 // Server holds the HTTP server state.
 type Server struct {
 	port   int
@@ -53,24 +60,50 @@ type Server struct {
 
 // New creates a new Server instance with the given UI filesystem and a default configuration.
 func New(port int, dir string, uiFS fs.FS) *Server {
-	return &Server{
+	s := &Server{
 		port: port,
 		dir:  dir,
 		uiFS: uiFS,
 		config: Config{
 			Version: "1",
 			Project: Project{},
-			Tools: []Tool{
-				{Name: "code_commenting", Enabled: false, Description: "Adds inline code comments to pull requests"},
-				{Name: "docusaurus_sync", Enabled: false, Description: "Syncs code documentation to a Docusaurus site"},
-				{Name: "changelog_gen", Enabled: false, Description: "Auto-generates changelog from commit messages"},
-			},
+			Tools:   []Tool{},
 			BranchRules: []BranchRule{
 				{Branch: "main", Triggers: []string{"push"}, Tools: []string{}},
 				{Branch: "develop", Triggers: []string{"push", "pull_request"}, Tools: []string{}},
 			},
 		},
 	}
+
+	// 1. Load available tools from config/tools.yaml
+	toolsPath := filepath.Join(dir, "config", "tools.yaml")
+	if data, err := os.ReadFile(toolsPath); err == nil {
+		var tf ToolsFile
+		if err := yaml.Unmarshal(data, &tf); err == nil {
+			s.config.Tools = tf.Tools
+		}
+	}
+
+	// 2. Try to load initial config from .github/.puck/base.yaml if it exists.
+	configPath := filepath.Join(dir, ".github", ".puck", "base.yaml")
+	if data, err := os.ReadFile(configPath); err == nil {
+		var loadedConfig Config
+		if err := yaml.Unmarshal(data, &loadedConfig); err == nil {
+			// Merge: use enabled status from loaded config for matching tools
+			for i, availableTool := range s.config.Tools {
+				for _, loadedTool := range loadedConfig.Tools {
+					if availableTool.Name == loadedTool.Name {
+						s.config.Tools[i].Enabled = loadedTool.Enabled
+					}
+				}
+			}
+			s.config.Version = loadedConfig.Version
+			s.config.Project = loadedConfig.Project
+			s.config.BranchRules = loadedConfig.BranchRules
+		}
+	}
+
+	return s
 }
 
 // Start initializes the routes, opens the browser, and starts the HTTP server.
@@ -84,6 +117,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/health", s.handleHealth)
 	mux.HandleFunc("/api/config", s.handleConfig)
 	mux.HandleFunc("/api/config/yaml", s.handleConfigYAML)
+	mux.HandleFunc("/api/deploy", s.handleDeploy)
 
 	addr := fmt.Sprintf(":%d", s.port)
 	url := fmt.Sprintf("http://localhost:%d", s.port)
@@ -125,9 +159,21 @@ func (s *Server) handleConfigYAML(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.mu.RLock()
-	defer s.mu.RUnlock()
+	config := s.config
+	s.mu.RUnlock()
 
-	data, err := yaml.Marshal(s.config)
+	// Filter only enabled tools for the YAML preview too, 
+	// or keep all but mark them? User said "only add selected tools into the final config file".
+	// Let's filter here too for consistency with "Live Configuration".
+	finalConfig := config
+	finalConfig.Tools = []Tool{}
+	for _, t := range config.Tools {
+		if t.Enabled {
+			finalConfig.Tools = append(finalConfig.Tools, t)
+		}
+	}
+
+	data, err := yaml.Marshal(finalConfig)
 	if err != nil {
 		http.Error(w, "Failed to marshal config to YAML", http.StatusInternalServerError)
 		return
@@ -164,11 +210,55 @@ func (s *Server) postConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.mu.Lock()
+	// Update while preserving tool definitions that might not be in the request 
+	// (though the UI should send them all).
 	s.config = newConfig
 	s.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+}
+
+// handleDeploy saves the current configuration to .github/.puck/base.yaml on disk.
+func (s *Server) handleDeploy(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	s.mu.RLock()
+	config := s.config
+	s.mu.RUnlock()
+
+	// Only include enabled tools in the final config
+	finalConfig := config
+	finalConfig.Tools = []Tool{}
+	for _, t := range config.Tools {
+		if t.Enabled {
+			finalConfig.Tools = append(finalConfig.Tools, t)
+		}
+	}
+
+	data, err := yaml.Marshal(finalConfig)
+	if err != nil {
+		http.Error(w, "Failed to marshal config to YAML", http.StatusInternalServerError)
+		return
+	}
+
+	configDir := filepath.Join(s.dir, ".github", ".puck")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		http.Error(w, "Failed to create config directory: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	configPath := filepath.Join(configDir, "base.yaml")
+	if err := os.WriteFile(configPath, data, 0644); err != nil {
+		http.Error(w, "Failed to write config file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "deployed", "path": configPath})
 }
 
 // openBrowser opens the given URL in the default browser.

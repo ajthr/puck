@@ -1,74 +1,136 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Puck - Repository helper bot configuration dashboard">
     <title>Puck Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
 </head>
+
 <body>
-    <div class="container">
-        <header>
-            <h1>Puck</h1>
-            <p class="subtitle">Repository Helper Bot</p>
-            <span id="status-badge" class="badge">Connecting...</span>
+    <div class="app">
+
+        <!-- Top Bar -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <span class="topbar-logo">Puck</span>
+                <span class="topbar-version">v0.1.0</span>
+                <span id="status-badge" class="badge">
+                    <span class="badge-dot"></span>Connecting...
+                </span>
+            </div>
+            <div class="topbar-right">
+                <div class="theme-switcher">
+                    <button class="theme-btn" data-theme="light" title="Light theme" aria-label="Light theme">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="5" />
+                            <line x1="12" y1="1" x2="12" y2="3" />
+                            <line x1="12" y1="21" x2="12" y2="23" />
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                            <line x1="1" y1="12" x2="3" y2="12" />
+                            <line x1="21" y1="12" x2="23" y2="12" />
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                        </svg>
+                    </button>
+                    <button class="theme-btn" data-theme="system" title="System theme" aria-label="System theme">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                            <line x1="8" y1="21" x2="16" y2="21" />
+                            <line x1="12" y1="17" x2="12" y2="21" />
+                        </svg>
+                    </button>
+                    <button class="theme-btn" data-theme="dark" title="Dark theme" aria-label="Dark theme">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
         </header>
 
-        <main>
-            <section class="config-section">
-                <div class="section-header">
-                    <h2>Current Configuration</h2>
-                    <button id="refresh-btn" class="btn btn-secondary">Refresh</button>
+        <!-- Main Content -->
+        <main class="main-layout">
+
+            <!-- Left Panel: Controls -->
+            <div class="panel panel-controls">
+                <div class="panel-inner">
+                    <!-- Project Settings -->
+                    <div class="section">
+                        <h2 class="section-title">Project Settings</h2>
+                        <div class="input-group">
+                            <div class="field">
+                                <label class="field-label" for="project-name">Name</label>
+                                <input id="project-name" class="input" type="text" placeholder="e.g. My Cool Project" />
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="project-path">Path</label>
+                                <input id="project-path" class="input" type="text" placeholder="e.g. /home/user/project" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tools -->
+                    <div class="section">
+                        <h2 class="section-title">Tools</h2>
+                        <div class="tool-selector">
+                            <select id="tool-dropdown" class="input">
+                                <option value="" disabled selected>Add a tool...</option>
+                            </select>
+                        </div>
+                        <div id="selected-tools" class="selected-tool-list">
+                            <!-- Selected tools will appear here -->
+                        </div>
+                    </div>
+
+                    <!-- Branch Rules -->
+                    <div class="section">
+                        <h2 class="section-title">Branch Rules</h2>
+                        <div id="branch-list" class="branch-list"></div>
+                        <div class="input-row" style="margin-top: 0.75rem;">
+                            <input id="new-branch-input" class="input" type="text"
+                                placeholder="Branch name (e.g. feature/*)" />
+                            <button id="add-branch-btn" class="btn btn-primary btn-sm">Add</button>
+                        </div>
+                    </div>
                 </div>
-                <pre id="config-display" class="config-block"><code>Loading...</code></pre>
-            </section>
+            </div>
+
+            <!-- Right Panel: YAML Preview -->
+            <div class="panel panel-preview">
+                <div class="panel-inner">
+                    <div class="yaml-preview">
+                        <div class="panel-header">
+                            <h2 class="panel-title">Live Configuration</h2>
+                            <button id="deploy-btn" class="btn btn-primary btn-sm">Deploy Config</button>
+                        </div>
+                        <div class="yaml-content">
+                            <pre><code id="yaml-output">Loading...</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </main>
 
-        <footer>
-            <p>Puck v0.1.0 &mdash; Configuration dashboard</p>
+        <!-- Footer -->
+        <footer class="footer">
+            <span class="footer-text">Puck &mdash; Repository Helper Bot</span>
+            <span class="footer-text">Configuration Dashboard</span>
         </footer>
+
     </div>
 
-    <script>
-        const statusBadge = document.getElementById('status-badge');
-        const configDisplay = document.getElementById('config-display').querySelector('code');
-        const refreshBtn = document.getElementById('refresh-btn');
-
-        async function checkHealth() {
-            try {
-                const res = await fetch('/api/health');
-                const data = await res.json();
-                if (data.status === 'ok') {
-                    statusBadge.textContent = 'Connected';
-                    statusBadge.classList.add('badge-ok');
-                    statusBadge.classList.remove('badge-error');
-                }
-            } catch {
-                statusBadge.textContent = 'Disconnected';
-                statusBadge.classList.add('badge-error');
-                statusBadge.classList.remove('badge-ok');
-            }
-        }
-
-        async function loadConfig() {
-            try {
-                const res = await fetch('/api/config/yaml');
-                const yaml = await res.text();
-                configDisplay.textContent = yaml;
-            } catch {
-                configDisplay.textContent = 'Error: could not load configuration.';
-            }
-        }
-
-        refreshBtn.addEventListener('click', () => {
-            loadConfig();
-            checkHealth();
-        });
-
-        // Initial load.
-        checkHealth();
-        loadConfig();
-    </script>
+    <script src="app.js"></script>
 </body>
+
 </html>

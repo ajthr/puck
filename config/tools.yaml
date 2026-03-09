@@ -1,0 +1,7 @@
+tools:
+    - name: code_commenting
+      description: Adds inline code comments to pull requests
+    - name: docusaurus_sync
+      description: Syncs code documentation to a Docusaurus site
+    - name: changelog_gen
+      description: Auto-generates changelog from commit messages
