@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Puck - Repository helper bot configuration dashboard">
+    <title>Puck Dashboard</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Puck</h1>
+            <p class="subtitle">Repository Helper Bot</p>
+            <span id="status-badge" class="badge">Connecting...</span>
+        </header>
+
+        <main>
+            <section class="config-section">
+                <div class="section-header">
+                    <h2>Current Configuration</h2>
+                    <button id="refresh-btn" class="btn btn-secondary">Refresh</button>
+                </div>
+                <pre id="config-display" class="config-block"><code>Loading...</code></pre>
+            </section>
+        </main>
+
+        <footer>
+            <p>Puck v0.1.0 &mdash; Configuration dashboard</p>
+        </footer>
+    </div>
+
+    <script>
+        const statusBadge = document.getElementById('status-badge');
+        const configDisplay = document.getElementById('config-display').querySelector('code');
+        const refreshBtn = document.getElementById('refresh-btn');
+
+        async function checkHealth() {
+            try {
+                const res = await fetch('/api/health');
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    statusBadge.textContent = 'Connected';
+                    statusBadge.classList.add('badge-ok');
+                    statusBadge.classList.remove('badge-error');
+                }
+            } catch {
+                statusBadge.textContent = 'Disconnected';
+                statusBadge.classList.add('badge-error');
+                statusBadge.classList.remove('badge-ok');
+            }
+        }
+
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/config/yaml');
+                const yaml = await res.text();
+                configDisplay.textContent = yaml;
+            } catch {
+                configDisplay.textContent = 'Error: could not load configuration.';
+            }
+        }
+
+        refreshBtn.addEventListener('click', () => {
+            loadConfig();
+            checkHealth();
+        });
+
+        // Initial load.
+        checkHealth();
+        loadConfig();
+    </script>
+</body>
+</html>
